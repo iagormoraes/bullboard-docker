@@ -77,6 +77,12 @@ app.use(passport.initialize({}))
 app.use(passport.session({}))
 app.use(bodyParser.urlencoded({ extended: false }))
 
+// Re-run on each page render.
+app.use(config.HOME_PAGE, async (req, res, next) => {
+	await run()
+	next()
+})
+
 if (config.AUTH_ENABLED) {
 	app.use(config.LOGIN_PAGE, authRouter)
 	app.use(config.HOME_PAGE, ensureLoggedIn(config.LOGIN_PAGE), router)
@@ -94,26 +100,24 @@ app.listen(config.PORT, () => {
 async function run() {
 	const client = redis.createClient({ socket: redisConfig.redis })
 	await client.connect()
-	client.KEYS(`${config.BULL_PREFIX}:*`, (err, keys) => {
-		const uniqKeys = new Set(keys.map((key) => key.replace(/^.+?:(.+?):.+?$/, '$1')))
-		const queueList = Array.from(uniqKeys)
-			.sort()
-			.map((item) => {
-				if (config.BULL_VERSION === 'BULLMQ') {
-					const options = { redis: redisConfig.redis }
-					if (config.BULL_PREFIX) {
-						options.prefix = config.BULL_PREFIX
-					}
-					return new BullMQAdapter(new bullmq.Queue(item, options))
+	const keys = await client.KEYS('*')
+
+	const uniqKeys = new Set(keys.map((key) => key.replace(/^.+?:(.+?):.+?$/, '$1')))
+	const queueList = Array.from(uniqKeys)
+		.sort()
+		.map((item) => {
+			if (config.BULL_VERSION === 'BULLMQ') {
+				const options = { connection: redisConfig.redis }
+				if (config.BULL_PREFIX) {
+					options.prefix = config.BULL_PREFIX
 				}
+				return new BullMQAdapter(new bullmq.Queue(item, options))
+			}
 
-				return new BullAdapter(new Queue(item, redisConfig))
-			})
+			return new BullAdapter(new Queue(item, redisConfig))
+		})
 
-		setQueues(queueList)
-		// eslint-disable-next-line no-console
-		console.log('done!')
-	})
+	setQueues(queueList)
 }
 
 run()
