@@ -100,8 +100,7 @@ app.listen(config.PORT, () => {
 async function run() {
 	const client = redis.createClient({ socket: redisConfig.redis })
 	await client.connect()
-	const keys = await client.KEYS('*')
-
+	const keys = await client.KEYS(config.BULL_PREFIX + ':*')
 	const uniqKeys = new Set(keys.map((key) => key.replace(/^.+?:(.+?):.+?$/, '$1')))
 	const queueList = Array.from(uniqKeys)
 		.sort()
