@@ -99,7 +99,11 @@ app.listen(config.PORT, () => {
 })
 
 async function run() {
-	await client.connect()
+	// Connect to redis once.
+	if(!client.isOpen) {
+		await client.connect()
+	}
+
 	const keys = await client.KEYS(config.BULL_PREFIX + ':*')
 	const uniqKeys = new Set(keys.map((key) => key.replace(/^.+?:(.+?):.+?$/, '$1')))
 	const queueList = Array.from(uniqKeys)
@@ -117,7 +121,10 @@ async function run() {
 		})
 
 	replaceQueues(queueList)
-	await client.disconnect()
 }
 
 run()
+
+process.on('SIGTERM', () => {
+	client.quit()
+})
