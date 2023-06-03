@@ -26,7 +26,7 @@ const redisConfig = {
 const client = redis.createClient({ socket: redisConfig.redis })
 
 const serverAdapter = new ExpressAdapter()
-const { setQueues, replaceQueues } = createBullBoard({ queues: [], serverAdapter })
+const { setQueues } = createBullBoard({ queues: [], serverAdapter })
 const router = serverAdapter.getRouter()
 
 const app = express()
@@ -78,12 +78,6 @@ app.use(passport.initialize({}))
 app.use(passport.session({}))
 app.use(bodyParser.urlencoded({ extended: false }))
 
-// Re-run on each page render.
-app.use(config.HOME_PAGE, async (req, res, next) => {
-	await run()
-	next()
-})
-
 if (config.AUTH_ENABLED) {
 	app.use(config.LOGIN_PAGE, authRouter)
 	app.use(config.HOME_PAGE, ensureLoggedIn(config.LOGIN_PAGE), router)
@@ -120,11 +114,9 @@ async function run() {
 			return new BullAdapter(new Queue(item, redisConfig))
 		})
 
-	replaceQueues(queueList)
+	setQueues(queueList)
 }
 
 run()
 
-process.on('SIGTERM', () => {
-	client.quit()
-})
+process.on('SIGTERM', () => client.quit())
