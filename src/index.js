@@ -23,9 +23,10 @@ const redisConfig = {
 		tls: config.REDIS_USE_TLS === 'true',
 	},
 }
+const client = redis.createClient({ socket: redisConfig.redis })
 
 const serverAdapter = new ExpressAdapter()
-const { setQueues } = createBullBoard({ queues: [], serverAdapter })
+const { setQueues, replaceQueues } = createBullBoard({ queues: [], serverAdapter })
 const router = serverAdapter.getRouter()
 
 const app = express()
@@ -98,7 +99,6 @@ app.listen(config.PORT, () => {
 })
 
 async function run() {
-	const client = redis.createClient({ socket: redisConfig.redis })
 	await client.connect()
 	const keys = await client.KEYS(config.BULL_PREFIX + ':*')
 	const uniqKeys = new Set(keys.map((key) => key.replace(/^.+?:(.+?):.+?$/, '$1')))
@@ -116,7 +116,7 @@ async function run() {
 			return new BullAdapter(new Queue(item, redisConfig))
 		})
 
-	setQueues(queueList)
+	replaceQueues(queueList)
 	await client.disconnect()
 }
 
