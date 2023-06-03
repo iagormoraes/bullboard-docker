@@ -117,6 +117,7 @@ async function run() {
 		})
 
 	setQueues(queueList)
+	await client.disconnect()
 }
 
 run()
